@@ -53,8 +53,12 @@ public class Crawler {
         l.log("Консольные аргументы верны.");
         //Создаём пул и добавляем первую ссылку в список необработанынх ссылок
         pool = new URLPool();
-        pool.push(new URLDepthPair(url, 0));
-
+        try{
+            pool.push(new URLDepthPair(url, 0));
+        } catch (MalformedURLException e){
+            System.out.println(ERROR);
+            System.exit(1);
+        }
         //Создаём массив потоков и запускаем их
         Thread[] threads = new Thread[numThreads];
         for(int i = 0; i < numThreads; i++){

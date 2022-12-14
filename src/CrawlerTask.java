@@ -8,11 +8,10 @@ import java.util.regex.Pattern;
 public class CrawlerTask implements Runnable {
     private final URLPool pool;
     private static final String MODULE_NAME = "CrawlerTask";
-    private static final Pattern urlPattern = Pattern.compile(
-            "http://{1}[\\w\\.\\-/:\\#\\?\\=\\&\\;\\%\\~\\+]+",
-            Pattern.CASE_INSENSITIVE);
+    private static final String URL_PREFIX = "http://";
+    private static final String URL_HREF = "<a href=";
     private  Logger l;
-    private static final int TIMEOUT = 1000;
+    private static final int TIMEOUT = 10000;
     private int maxDepth = 0;
     private Socket socket;
     private BufferedReader in;
@@ -26,9 +25,9 @@ public class CrawlerTask implements Runnable {
     /** Функция для создания сокета/подключения к сайту */
     private boolean connect(URLDepthPair pair){
         try{
-            socket = new Socket(pair.getHost(), 80);
+            socket = new Socket(pair.getURL().getHost(), 80);
         } catch (UnknownHostException e) {
-            l.log("Неизвестный хост: " + pair.getHost());
+            l.log("Неизвестный хост: " + pair.getURL().getHost());
             return false;
         } catch (IOException e) {
             return false;
@@ -67,8 +66,12 @@ public class CrawlerTask implements Runnable {
     /** Функция для отправки запроса на сервер и чтения html документа */
     private LinkedList<String> readHTML(URLDepthPair pair){
         LinkedList<String> lines = new LinkedList<>();
-        out.println("GET " + pair.getPath() + " HTTP/1.1");
-        out.println("Host: " + pair.getHost());
+        System.out.println("GET " + pair.getURL().getPath() + " HTTP/1.1");
+        System.out.println("Host: " + pair.getURL().getHost());
+        System.out.println("Connection: close");
+        System.out.println();
+        out.println("GET " + pair.getURL().getPath() + " HTTP/1.1");
+        out.println("Host: " + pair.getURL().getHost());
         out.println("Connection: close");
         out.println();
         String line;
@@ -116,12 +119,17 @@ public class CrawlerTask implements Runnable {
         String link;
         URLDepthPair newPair;
         for (String hLine : lines) {
-            Matcher matcher = urlPattern.matcher(hLine);
-            while (matcher.find()) {
-                newPair = new URLDepthPair(matcher.group(), pair.getDepth() + 1);
-                if(!newPair.isValidURL())continue;
-                list.add(newPair);
+            System.out.println(hLine);
+            int startIdx = hLine.indexOf(URL_PREFIX);
+            int endIdx = hLine.indexOf("\"", startIdx + 1);
+            if(startIdx == -1 || endIdx == -1 || !hLine.contains(URL_HREF))continue;
+            link = hLine.substring(startIdx, endIdx);
+            try {
+                newPair = new URLDepthPair(link, pair.getDepth() + 1);
+            } catch (MalformedURLException e){
+                continue;
             }
+            list.add(newPair);
         }
         try {
             socket.close();
